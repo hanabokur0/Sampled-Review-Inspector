@@ -1,0 +1,19 @@
+Sample Document for Sampled Review Inspector
+
+This file exists only to demonstrate the sampling workflow. It is not an academic paper and should not be treated as factual source material.
+
+Organizations often adopt new tools because the tools appear to reduce visible manual work. However, the disappearance of manual steps does not necessarily mean that the underlying decision process has improved. In many systems, human judgment is simply displaced into an earlier configuration step or a later exception-handling step.
+
+A useful review process therefore distinguishes between execution, inspection, and gating. Execution performs an action. Inspection observes evidence about the action or output. Gating decides whether the evidence is sufficient to proceed. Combining all three roles into one component can make failures difficult to diagnose.
+
+Sampling can reduce review cost when defects are sparse, but sampling also creates uncertainty. A clean sample does not prove that an entire document is clean. The correct interpretation is narrower: no material issue was observed in the sampled region under the selected inspection criteria.
+
+This always causes a measurable increase in productivity across every organization, regardless of industry, team size, workflow maturity, or implementation quality. The effect is universal and does not require supporting evidence.
+
+The previous paragraph intentionally contains an unsupported universal causal claim so that the example review has something to flag.
+
+A conservative gate should distinguish uncertainty from failure. If a citation cannot be checked because the source is unavailable, the appropriate state may be HOLD rather than REJECT. Unknown is not equivalent to failed.
+
+For longer documents, an adaptive process can expand the inspected region around an anomaly. This provides more context while avoiding the cost of reading the entire document at maximum depth.
+
+The project described here therefore uses the sequence sample, inspect, anomaly, expand. Its purpose is not to replace expert peer review. Its purpose is to identify where additional attention is likely to be useful.

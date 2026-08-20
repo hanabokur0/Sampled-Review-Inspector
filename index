@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sampled Review Inspector v0.1.0</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #101114;
+      --panel: #181a1f;
+      --panel2: #20232a;
+      --text: #f2f4f8;
+      --muted: #a8b0bd;
+      --line: #343945;
+      --accent: #83b7ff;
+      --good: #6dd59c;
+      --warn: #ffd166;
+      --bad: #ff7b72;
+      --hold: #c7a7ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 28px 18px 60px; }
+    h1 { margin: 0 0 4px; font-size: clamp(28px, 4vw, 44px); }
+    h2 { margin: 0 0 14px; font-size: 20px; }
+    h3 { margin: 18px 0 8px; font-size: 16px; }
+    p { margin: 8px 0; }
+    .muted { color: var(--muted); }
+    .hero { margin-bottom: 22px; }
+    .flow { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    label { display: block; font-weight: 700; margin-bottom: 6px; }
+    textarea, input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel2);
+      color: var(--text);
+      padding: 10px 12px;
+      font: inherit;
+    }
+    textarea { min-height: 190px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    input[type="file"] { padding: 8px; }
+    .controls { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; margin: 12px 0; }
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.primary { background: #24466f; border-color: #376aa8; }
+    button:hover { filter: brightness(1.12); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .sample-card {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+    .sample-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0d0f12;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      max-height: 340px;
+      overflow: auto;
+      font-size: 12px;
+    }
+    .gate {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      border: 1px solid currentColor;
+    }
+    .PASS { color: var(--good); }
+    .REVIEW { color: var(--warn); }
+    .HOLD { color: var(--hold); }
+    .REJECT { color: var(--bad); }
+    .finding { border-left: 3px solid var(--line); padding-left: 10px; margin: 12px 0; }
+    .finding.high, .finding.critical { border-left-color: var(--bad); }
+    .finding.medium { border-left-color: var(--warn); }
+    .finding.low { border-left-color: var(--good); }
+    .small { font-size: 12px; }
+    .hidden { display: none !important; }
+    .notice { padding: 10px 12px; border-radius: 10px; background: #161f2c; border: 1px solid #294667; }
+    .error { padding: 10px 12px; border-radius: 10px; background: #2a1717; border: 1px solid #6d2d2d; color: #ffb4ae; }
+    @media (max-width: 820px) {
+      .grid, .controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <h1>Sampled Review Inspector</h1>
+    <p class="muted">v0.1.0 · local-first manual LLM review PoC · no API · no upload</p>
+    <p class="flow">sample → inspect → anomaly → expand</p>
+  </section>
+
+  <section class="panel">
+    <h2>1. Load document</h2>
+    <div class="grid">
+      <div>
+        <label for="fileInput">Local .txt / .md file</label>
+        <input id="fileInput" type="file" accept=".txt,.md,text/plain,text/markdown" />
+        <p class="small muted">The browser reads the file locally. This page makes no network request.</p>
+      </div>
+      <div>
+        <label for="docStats">Document stats</label>
+        <div id="docStats" class="notice">No document loaded.</div>
+      </div>
+    </div>
+    <label for="documentText">Or paste document text</label>
+    <textarea id="documentText" placeholder="Paste a paper, report, manuscript, or other long text here..."></textarea>
+
+    <div class="controls">
+      <div>
+        <label for="sampleSize">Sample size (characters)</label>
+        <input id="sampleSize" type="number" min="300" max="12000" step="100" value="3000" />
+      </div>
+      <div>
+        <label for="seed">Seed</label>
+        <input id="seed" type="number" min="1" max="2147483646" value="184728" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="randomSeedBtn" type="button">New seed</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <button id="sampleBtn" class="primary" type="button">Sample document</button>
+      <button id="clearBtn" type="button">Clear</button>
+    </div>
+    <div id="sampleError" class="error hidden" style="margin-top:10px"></div>
+  </section>
+
+  <section id="samplesPanel" class="panel hidden">
+    <h2>2. Samples</h2>
+    <p class="muted">Beginning, seeded-random, and ending samples. Offsets are saved for reproducibility.</p>
+    <div id="samples"></div>
+  </section>
+
+  <section id="promptPanel" class="panel hidden">
+    <h2>3. Review prompt</h2>
+    <p class="muted">Copy this prompt into the LLM of your choice. Ask it to return JSON only.</p>
+    <div class="row" style="margin-bottom:10px">
+      <button id="copyPromptBtn" class="primary" type="button">Copy prompt</button>
+      <span id="copyStatus" class="small muted"></span>
+    </div>
+    <textarea id="reviewPrompt" spellcheck="false"></textarea>
+  </section>
+
+  <section id="reviewPanel" class="panel hidden">
+    <h2>4. Paste review JSON</h2>
+    <p class="muted">Paste the structured response from the reviewer LLM. AI-writing suspicion alone must not cause REJECT.</p>
+    <textarea id="reviewJson" spellcheck="false" placeholder='{"document_status":"REVIEW", ...}'></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="applyReviewBtn" class="primary" type="button">Apply review</button>
+      <button id="loadExampleBtn" type="button">Load example JSON</button>
+    </div>
+    <div id="reviewError" class="error hidden" style="margin-top:10px"></div>
+  </section>
+
+  <section id="resultPanel" class="panel hidden">
+    <h2>5. Result</h2>
+    <div id="result"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Design notes</h2>
+    <p><strong>generator != inspector != gate</strong></p>
+    <p class="muted">This tool is not an AI-authorship detector. It samples text, asks an inspector to identify review-worthy anomalies, and renders a gate decision with evidence.</p>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    fileInput: $('fileInput'),
+    documentText: $('documentText'),
+    docStats: $('docStats'),
+    sampleSize: $('sampleSize'),
+    seed: $('seed'),
+    randomSeedBtn: $('randomSeedBtn'),
+    sampleBtn: $('sampleBtn'),
+    clearBtn: $('clearBtn'),
+    sampleError: $('sampleError'),
+    samplesPanel: $('samplesPanel'),
+    samples: $('samples'),
+    promptPanel: $('promptPanel'),
+    reviewPrompt: $('reviewPrompt'),
+    copyPromptBtn: $('copyPromptBtn'),
+    copyStatus: $('copyStatus'),
+    reviewPanel: $('reviewPanel'),
+    reviewJson: $('reviewJson'),
+    applyReviewBtn: $('applyReviewBtn'),
+    loadExampleBtn: $('loadExampleBtn'),
+    reviewError: $('reviewError'),
+    resultPanel: $('resultPanel'),
+    result: $('result')
+  };
+
+  let currentSamples = [];
+  let currentMeta = null;
+
+  const exampleReview = {
+    document_status: 'REVIEW',
+    summary: 'The random sample contains an unsupported causal claim and requires source verification.',
+    samples: [
+      { sample_id: 'sample-beginning', recommended_status: 'PASS', findings: [] },
+      {
+        sample_id: 'sample-random',
+        recommended_status: 'REVIEW',
+        findings: [
+          {
+            type: 'unsupported_generalization',
+            severity: 'medium',
+            quote: 'This always causes a measurable increase in productivity.',
+            reason: 'The claim is causal and universal, but the sample provides no supporting evidence.',
+            needs_expansion: true
+          }
+        ]
+      },
+      { sample_id: 'sample-ending', recommended_status: 'PASS', findings: [] }
+    ],
+    ai_writing_signal: {
+      level: 'low',
+      note: 'Reference signal only; not a rejection criterion.'
+    },
+    next_action: {
+      type: 'expand',
+      sample_id: 'sample-random',
+      characters_before: 3000,
+      characters_after: 3000,
+      reason: 'Inspect supporting context around the causal claim.'
+    }
+  };
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function xmur3(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) {
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function() {
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      return (h ^= h >>> 16) >>> 0;
+    };
+  }
+
+  function mulberry32(a) {
+    return function() {
+      let t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function seededRandom(seed) {
+    const seedFn = xmur3(String(seed));
+    return mulberry32(seedFn());
+  }
+
+  function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+  function nearestParagraphStart(text, index, searchBack = 300) {
+    const from = Math.max(0, index - searchBack);
+    const chunk = text.slice(from, index);
+    const a = chunk.lastIndexOf('\n\n');
+    if (a >= 0) return from + a + 2;
+    const b = chunk.lastIndexOf('\n');
+    if (b >= 0) return from + b + 1;
+    return index;
+  }
+
+  function nearestParagraphEnd(text, index, searchForward = 300) {
+    const to = Math.min(text.length, index + searchForward);
+    const chunk = text.slice(index, to);
+    const a = chunk.indexOf('\n\n');
+    if (a >= 0) return index + a;
+    const b = chunk.indexOf('\n');
+    if (b >= 0) return index + b;
+    return index;
+  }
+
+  function buildSample(text, id, label, rawStart, size) {
+    let start = clamp(rawStart, 0, Math.max(0, text.length - 1));
+    start = nearestParagraphStart(text, start);
+    let end = Math.min(text.length, start + size);
+    end = nearestParagraphEnd(text, end);
+    if (end <= start) end = Math.min(text.length, start + size);
+    return { id, label, start, end, text: text.slice(start, end) };
+  }
+
+  function getSamples(text, sampleSize, seed) {
+    if (!text.trim()) throw new Error('Paste or load a document first.');
+    if (!Number.isFinite(sampleSize) || sampleSize < 300) throw new Error('Sample size must be at least 300 characters.');
+
+    if (text.length <= sampleSize * 1.5) {
+      return [buildSample(text, 'sample-full', 'full document', 0, text.length)];
+    }
+
+    const beginning = buildSample(text, 'sample-beginning', 'beginning', 0, sampleSize);
+    const endingStart = Math.max(0, text.length - sampleSize);
+    const ending = buildSample(text, 'sample-ending', 'ending', endingStart, sampleSize);
+
+    const safeMin = Math.min(beginning.end + 1, Math.max(0, text.length - sampleSize));
+    const safeMax = Math.max(safeMin, ending.start - sampleSize);
+    const rng = seededRandom(seed);
+    const rawRandomStart = safeMax > safeMin
+      ? Math.floor(safeMin + rng() * (safeMax - safeMin))
+      : Math.floor(rng() * Math.max(1, text.length - sampleSize));
+    const random = buildSample(text, 'sample-random', 'seeded random', rawRandomStart, sampleSize);
+
+    return [beginning, random, ending];
+  }
+
+  function updateStats() {
+    const text = els.documentText.value;
+    const lines = text ? text.split(/\r?\n/).length : 0;
+    const paragraphs = text.trim() ? text.trim().split(/\n\s*\n/).length : 0;
+    els.docStats.innerHTML = text
+      ? `<strong>${text.length.toLocaleString()}</strong> characters · ${lines.toLocaleString()} lines · ${paragraphs.toLocaleString()} paragraphs`
+      : 'No document loaded.';
+  }
+
+  function renderSamples(samples, seed, size) {
+    els.samples.innerHTML = samples.map(s => `
+      <article class="sample-card">
+        <div class="sample-meta">
+          <strong>${escapeHtml(s.id)} · ${escapeHtml(s.label)}</strong>
+          <span>${s.start.toLocaleString()}–${s.end.toLocaleString()} · ${(s.end - s.start).toLocaleString()} chars</span>
+        </div>
+        <pre>${escapeHtml(s.text)}</pre>
+      </article>
+    `).join('');
+    els.samples.insertAdjacentHTML('afterbegin', `<p class="small muted">seed=${escapeHtml(seed)} · requested sample size=${escapeHtml(size)}</p>`);
+  }
+
+  function buildPrompt(meta, samples) {
+    const sampleBlocks = samples.map(s => `\n### ${s.id}\nposition: ${s.label}\nstart: ${s.start}\nend: ${s.end}\n\n<sample>\n${s.text}\n</sample>`).join('\n');
+
+    return `You are an independent document inspector. Review only the supplied samples. Do not assume that unsampled parts are correct or incorrect.\n\nPURPOSE\nThis is sampled quality inspection, not authorship detection. AI-writing signals are weak reference signals only and MUST NOT cause REJECT by themselves.\n\nINSPECTION AXES\n1. logic: unsupported inference, contradiction, causal leap\n2. evidence: unsupported factual claims, citation needed, suspicious references\n3. consistency: definitions, numbers, named entities, claims\n4. redundancy: repeated paraphrase or content-free expansion\n5. specificity: vague generalization, empty abstraction, unexplained terminology\n6. ai_writing_signals: unusually uniform structure, generic filler, repetitive syntax, fabricated-looking specificity; reference only\n\nGATE DEFINITIONS\nPASS: no material issue found in the sampled text.\nREVIEW: a human should inspect one or more findings.\nHOLD: insufficient evidence or missing context prevents a decision. Unknown != Failed.\nREJECT: a serious issue is directly supported by the inspected material, such as a confirmed internal contradiction or clearly fabricated evidence visible in the sample.\n\nRULES\n- Quote only short snippets needed to identify a finding.\n- Do not claim a citation is fabricated unless you can establish that from the supplied material. Otherwise use HOLD or REVIEW.\n- If a finding depends on missing surrounding context, set needs_expansion=true.\n- Prefer REVIEW/HOLD over unsupported certainty.\n- Return JSON only. No markdown fences.\n\nDOCUMENT METADATA\ncharacters: ${meta.characters}\nsample_size_requested: ${meta.sampleSize}\nseed: ${meta.seed}\n\nSAMPLES\n${sampleBlocks}\n\nRETURN THIS SHAPE\n{\n  "document_status": "PASS|REVIEW|HOLD|REJECT",\n  "summary": "short summary",\n  "samples": [\n    {\n      "sample_id": "sample id",\n      "recommended_status": "PASS|REVIEW|HOLD|REJECT",\n      "findings": [\n        {\n          "type": "short_machine_readable_type",\n          "severity": "low|medium|high|critical",\n          "quote": "short exact snippet or empty string",\n          "reason": "why this matters",\n          "needs_expansion": true\n        }\n      ]\n    }\n  ],\n  "ai_writing_signal": {\n    "level": "none|low|medium|high",\n    "note": "reference signal only"\n  },\n  "next_action": {\n    "type": "none|expand|human_review|verify_source",\n    "sample_id": "sample id or empty string",\n    "characters_before": 3000,\n    "characters_after": 3000,\n    "reason": "short reason"\n  }\n}`;
+  }
+
+  function validateReview(data) {
+    const statuses = new Set(['PASS', 'REVIEW', 'HOLD', 'REJECT']);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Review JSON must be an object.');
+    if (!statuses.has(data.document_status)) throw new Error('document_status must be PASS, REVIEW, HOLD, or REJECT.');
+    if (data.samples && !Array.isArray(data.samples)) throw new Error('samples must be an array.');
+    return data;
+  }
+
+  function expansionRange(action) {
+    if (!action || action.type !== 'expand' || !action.sample_id) return null;
+    const s = currentSamples.find(x => x.id === action.sample_id);
+    if (!s || !currentMeta) return null;
+    const before = Number(action.characters_before) || 3000;
+    const after = Number(action.characters_after) || 3000;
+    const start = Math.max(0, s.start - before);
+    const end = Math.min(currentMeta.characters, s.end + after);
+    return { start, end };
+  }
+
+  function renderResult(data) {
+    const gate = escapeHtml(data.document_status);
+    const summary = escapeHtml(data.summary || '');
+    const samples = Array.isArray(data.samples) ? data.samples : [];
+    const findingsHtml = samples.map(sample => {
+      const findings = Array.isArray(sample.findings) ? sample.findings : [];
+      return `
+        <div class="sample-card">
+          <div class="row">
+            <strong>${escapeHtml(sample.sample_id || 'sample')}</strong>
+            <span class="gate ${escapeHtml(sample.recommended_status || 'REVIEW')}">${escapeHtml(sample.recommended_status || 'REVIEW')}</span>
+          </div>
+          ${findings.length ? findings.map(f => `
+            <div class="finding ${escapeHtml(f.severity || 'medium')}">
+              <strong>${escapeHtml(f.type || 'finding')}</strong> · ${escapeHtml(f.severity || 'medium')}<br>
+              ${f.quote ? `<span class="small">“${escapeHtml(f.quote)}”</span><br>` : ''}
+              <span>${escapeHtml(f.reason || '')}</span><br>
+              <span class="small muted">needs expansion: ${f.needs_expansion ? 'yes' : 'no'}</span>
+            </div>`).join('') : '<p class="muted">No findings.</p>'}
+        </div>`;
+    }).join('');
+
+    const ai = data.ai_writing_signal || {};
+    const action = data.next_action || {};
+    const range = expansionRange(action);
+
+    els.result.innerHTML = `
+      <p><span class="gate ${gate}">${gate}</span></p>
+      <p>${summary}</p>
+      ${findingsHtml}
+      <h3>AI-writing signal</h3>
+      <p><strong>${escapeHtml(ai.level || 'not provided')}</strong> — ${escapeHtml(ai.note || 'Reference signal only.')}</p>
+      <h3>Next action</h3>
+      <p><strong>${escapeHtml(action.type || 'none')}</strong>${action.sample_id ? ` · ${escapeHtml(action.sample_id)}` : ''}</p>
+      ${action.reason ? `<p>${escapeHtml(action.reason)}</p>` : ''}
+      ${range ? `<div class="notice">Suggested expansion range: characters <strong>${range.start.toLocaleString()}–${range.end.toLocaleString()}</strong>.</div>` : ''}
+    `;
+    els.resultPanel.classList.remove('hidden');
+  }
+
+  els.fileInput.addEventListener('change', async () => {
+    const file = els.fileInput.files && els.fileInput.files[0];
+    if (!file) return;
+    els.documentText.value = await file.text();
+    updateStats();
+  });
+
+  els.documentText.addEventListener('input', updateStats);
+
+  els.randomSeedBtn.addEventListener('click', () => {
+    els.seed.value = Math.floor(1 + Math.random() * 2147483645);
+  });
+
+  els.sampleBtn.addEventListener('click', () => {
+    els.sampleError.classList.add('hidden');
+    try {
+      const text = els.documentText.value;
+      const sampleSize = Number(els.sampleSize.value);
+      const seed = Number(els.seed.value) || 1;
+      currentSamples = getSamples(text, sampleSize, seed);
+      currentMeta = { characters: text.length, sampleSize, seed };
+      renderSamples(currentSamples, seed, sampleSize);
+      els.reviewPrompt.value = buildPrompt(currentMeta, currentSamples);
+      els.samplesPanel.classList.remove('hidden');
+      els.promptPanel.classList.remove('hidden');
+      els.reviewPanel.classList.remove('hidden');
+      els.resultPanel.classList.add('hidden');
+    } catch (err) {
+      els.sampleError.textContent = err.message || String(err);
+      els.sampleError.classList.remove('hidden');
+    }
+  });
+
+  els.clearBtn.addEventListener('click', () => {
+    els.documentText.value = '';
+    els.fileInput.value = '';
+    els.reviewPrompt.value = '';
+    els.reviewJson.value = '';
+    els.samples.innerHTML = '';
+    els.result.innerHTML = '';
+    currentSamples = [];
+    currentMeta = null;
+    ['samplesPanel','promptPanel','reviewPanel','resultPanel'].forEach(id => $(id).classList.add('hidden'));
+    updateStats();
+  });
+
+  els.copyPromptBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(els.reviewPrompt.value);
+      els.copyStatus.textContent = 'Copied.';
+    } catch {
+      els.reviewPrompt.select();
+      document.execCommand('copy');
+      els.copyStatus.textContent = 'Copied.';
+    }
+    setTimeout(() => { els.copyStatus.textContent = ''; }, 1600);
+  });
+
+  els.loadExampleBtn.addEventListener('click', () => {
+    els.reviewJson.value = JSON.stringify(exampleReview, null, 2);
+  });
+
+  els.applyReviewBtn.addEventListener('click', () => {
+    els.reviewError.classList.add('hidden');
+    try {
+      const raw = els.reviewJson.value.trim();
+      if (!raw) throw new Error('Paste review JSON first.');
+      const data = validateReview(JSON.parse(raw));
+      renderResult(data);
+    } catch (err) {
+      els.reviewError.textContent = err.message || String(err);
+      els.reviewError.classList.remove('hidden');
+    }
+  });
+
+  updateStats();
+})();
+</script>
+</body>
+</html>

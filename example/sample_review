@@ -1,0 +1,40 @@
+{
+  "document_status": "REVIEW",
+  "summary": "The random sample contains an unsupported causal claim and requires source verification.",
+  "samples": [
+    {
+      "sample_id": "sample-beginning",
+      "recommended_status": "PASS",
+      "findings": []
+    },
+    {
+      "sample_id": "sample-random",
+      "recommended_status": "REVIEW",
+      "findings": [
+        {
+          "type": "unsupported_generalization",
+          "severity": "medium",
+          "quote": "This always causes a measurable increase in productivity across every organization",
+          "reason": "The statement is universal and causal, but the sample provides no evidence supporting that scope.",
+          "needs_expansion": true
+        }
+      ]
+    },
+    {
+      "sample_id": "sample-ending",
+      "recommended_status": "PASS",
+      "findings": []
+    }
+  ],
+  "ai_writing_signal": {
+    "level": "low",
+    "note": "Reference signal only; not a rejection criterion."
+  },
+  "next_action": {
+    "type": "expand",
+    "sample_id": "sample-random",
+    "characters_before": 3000,
+    "characters_after": 3000,
+    "reason": "Inspect surrounding context and any supporting evidence for the universal causal claim."
+  }
+}

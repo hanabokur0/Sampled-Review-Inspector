@@ -1,0 +1,31 @@
+# v0.1.0 — Manual LLM Review PoC
+
+First public proof of concept for Sampled Review Inspector.
+
+## Included
+
+- Single-file browser app (`index.html`)
+- No API and no server requirement
+- Local `.txt` / `.md` loading
+- Beginning / seeded-random / ending sampling
+- Configurable sample size
+- Reproducible seed and character offsets
+- Structured review prompt generation
+- Manual JSON review import
+- PASS / REVIEW / HOLD / REJECT rendering
+- Suggested expansion range for flagged samples
+- Example document and example review JSON
+
+## Core idea
+
+> sample → inspect → anomaly → expand
+
+This release intentionally avoids automated AI-authorship claims. AI-writing signals are treated only as a weak review signal.
+
+## Suggested GitHub release title
+
+`v0.1.0 — Manual LLM Review PoC`
+
+## Suggested repository description
+
+`Adaptive document review by sampling first and expanding only when needed.`
